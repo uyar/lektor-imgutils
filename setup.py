@@ -19,6 +19,7 @@ setup(
         "Framework :: Lektor",
         "Environment :: Plugins",
     ],
+    install_requires=["beautifulsoup4", "pillow"],
     py_modules=["lektor_imgutils"],
     entry_points={
         "lektor.plugins": [
