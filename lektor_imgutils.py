@@ -15,7 +15,9 @@ class ImgUtilsPlugin(Plugin):
     def on_after_build_all(self, builder, **extra):
         # reporter.report_generic("image utilities started")
         for html_file in Path(builder.destination_path).glob("**/*.html"):
+            modified = False
             content = html_file.read_text()
+            lines = content.splitlines()
             soup = BeautifulSoup(content, "html.parser")
             for img_tag in soup.find_all("img"):
                 img_attrs = img_tag.attrs
@@ -27,6 +29,16 @@ class ImgUtilsPlugin(Plugin):
                             img_data["width"] = img.width
                             img_data["height"] = img.height
                         IMG_DATA[img_file] = img_data
-                    img_tag.attrs.update(img_data)
-                    html_file.write_text(str(soup))
+
+                    line = lines[img_tag.sourceline - 1]
+                    assert line[img_tag.sourcepos] == "<", line
+                    start_pos = line.index("i")
+                    assert line[start_pos:start_pos + 3] == "img", line
+                    assert line[start_pos + 3].isspace(), line
+                    new_attrs = 'width="%(width)s" height="%(height)s"' % img_data
+                    new_line = line[:start_pos + 4] + new_attrs + line[start_pos + 3:]
+                    lines[img_tag.sourceline - 1] = new_line
+                    modified = True
+            if modified:
+                html_file.write_text('\n'.join(lines))
         # reporter.report_generic("image utilities finished")
