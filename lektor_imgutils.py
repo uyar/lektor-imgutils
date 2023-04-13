@@ -24,9 +24,10 @@ class ImgUtilsPlugin(Plugin):
             modified = False
 
             added_attrs = {}
-            for options in self.sections.values():
-                generate = options.pop("_generate", [])
-                for tag in soup.select(options["selector"]):
+            for section, options in self.sections.items():
+                selector = options["_selector"]
+                generate = options.get("_generate", [])
+                for tag in soup.select(selector):
                     img_file = page.parent.joinpath(tag["src"]).resolve()
                     if img_file not in self.images:
                         self.images[img_file] = {}
@@ -44,7 +45,7 @@ class ImgUtilsPlugin(Plugin):
                         added_attrs[tag]["height"] = img_data["height"]
 
                     for attr, val in options.items():
-                        if attr not in tag.attrs:
+                        if (attr[0] != "_") and (attr not in tag.attrs):
                             added_attrs[tag][attr] = val
 
             lines = content.splitlines()
