@@ -12,17 +12,8 @@ class ImgUtilsPlugin(Plugin):
 
     def __init__(self, *args, **kwargs):
         Plugin.__init__(self, *args, **kwargs)
-        config = self.get_config()
-
-        self.sections = {}
-        for section in config.sections():
-            self.sections[section] = {
-                "selector": config.get(f"{section}.selector"),
-                "size": config.get_bool(f"{section}.size", False),
-                "loading": config.get(f"{section}.loading"),
-                "decoding": config.get(f"{section}.decoding"),
-            }
-
+        conf = self.get_config()
+        self.sections = {s: conf.section_as_dict(s) for s in conf.sections()}
         self.images = {}
 
     def on_after_build_all(self, builder, **extra):
@@ -34,6 +25,7 @@ class ImgUtilsPlugin(Plugin):
 
             added_attrs = {}
             for options in self.sections.values():
+                generate = options.pop("_generate", [])
                 for tag in soup.select(options["selector"]):
                     img_file = page.parent.joinpath(tag["src"]).resolve()
                     if img_file not in self.images:
@@ -42,7 +34,7 @@ class ImgUtilsPlugin(Plugin):
                         added_attrs[tag] = {}
 
                     sized = ("width" in tag.attrs) or ("height" in tag.attrs)
-                    if options["size"] and (not sized):
+                    if ("size" in generate) and (not sized):
                         img_data = self.images[img_file]
                         if ("width" not in img_data) or ("height" not in img_data):
                             with Image.open(img_file) as img:
@@ -51,13 +43,9 @@ class ImgUtilsPlugin(Plugin):
                         added_attrs[tag]["width"] = img_data["width"]
                         added_attrs[tag]["height"] = img_data["height"]
 
-                    loading = options.get("loading")
-                    if (loading is not None) and ("loading" not in tag.attrs):
-                        added_attrs[tag]["loading"] = loading
-
-                    decoding = options.get("decoding")
-                    if (decoding is not None) and ("decoding" not in tag.attrs):
-                        added_attrs[tag]["decoding"] = decoding
+                    for attr, val in options.items():
+                        if attr not in tag.attrs:
+                            added_attrs[tag][attr] = val
 
             lines = content.splitlines()
             for tag in soup.find_all("img"):
