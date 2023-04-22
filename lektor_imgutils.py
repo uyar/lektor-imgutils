@@ -2,7 +2,7 @@ from pathlib import Path
 
 from bs4 import BeautifulSoup
 from lektor.pluginsystem import Plugin
-# from lektor.reporter import reporter
+from lektor.reporter import reporter
 from PIL import Image
 
 
@@ -16,8 +16,16 @@ class ImgUtilsPlugin(Plugin):
         self.sections = {s: conf.section_as_dict(s) for s in conf.sections()}
         self.images = {}
 
+    def is_enabled(self, extra_flags):
+        return bool(extra_flags.get("imgutils"))
+
     def on_after_build_all(self, builder, **extra):
-        # reporter.report_generic("image utilities started")
+        extra_flags = getattr(
+            builder, "extra_flags", getattr(builder, "build_flags", None)
+        )
+        if not self.is_enabled(extra_flags):
+            return
+        reporter.report_generic("Starting image utilities")
         for page in Path(builder.destination_path).glob("**/*.html"):
             content = page.read_text()
             soup = BeautifulSoup(content, "html.parser")
@@ -65,4 +73,4 @@ class ImgUtilsPlugin(Plugin):
 
             if modified:
                 page.write_text('\n'.join(lines))
-        # reporter.report_generic("image utilities finished")
+        reporter.report_generic("Finished image utilities")
