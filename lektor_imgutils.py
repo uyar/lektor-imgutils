@@ -1,6 +1,8 @@
 from pathlib import Path
 
+import pillow_avif
 from bs4 import BeautifulSoup
+from jxlpy import JXLImagePlugin
 from lektor.pluginsystem import Plugin
 from lektor.reporter import reporter
 from PIL import Image
