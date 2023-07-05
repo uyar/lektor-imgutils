@@ -21,14 +21,7 @@ class ImgUtilsPlugin(Plugin):
         self.sections = {s: conf.section_as_dict(s) for s in conf.sections()}
         self.images = {}
 
-    def is_enabled(self, extra_flags):
-        return bool(extra_flags.get("imgutils"))
-
     def on_after_build_all(self, builder, **extra):
-        extra_flags = getattr(builder, "extra_flags",
-                              getattr(builder, "build_flags", None))
-        if not self.is_enabled(extra_flags):
-            return
         reporter.report_generic("Starting image utilities")
         for page in Path(builder.destination_path).glob("**/*.html"):
             content = page.read_text()
