@@ -21,22 +21,25 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Topic :: Internet",
+    "Topic :: Internet :: WWW/HTTP",
     "Topic :: Internet :: WWW/HTTP :: Site Management",
+    "Topic :: Scientific/Engineering :: Image Processing",
 ]
 
 requires-python = "~=3.8"
 dependencies = [
     "beautifulsoup4",
     "pillow",
-    "pillow-avif-plugin",
-    "jxlpy",
 ]
 
 [project.optional-dependencies]
 style = ["ruff"]
 dev = [
     "lektor-imgutils[style]",
+    "lektor",
     "build",
+    "twine",
+    "tox",
 ]
 
 [project.entry-points."lektor.plugins"]
@@ -44,9 +47,6 @@ imgutils = "lektor_imgutils:ImgUtilsPlugin"
 
 [project.urls]
 repository = "https://github.com/uyar/lektor-imgutils"
-
-[tool.setuptools]
-packages = ["lektor_imgutils"]
 
 [tool.ruff]
 select = ["E", "F", "I"]
@@ -56,6 +56,30 @@ line-length = 79
 [tool.ruff.isort]
 lines-after-imports = 2
 
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = style
+isolated_build = True
+
+[testenv:style]
+skip_install = true
+deps =
+    ruff
+commands =
+    ruff lektor_imgutils
+
+[testenv:package]
+skip_install = true
+deps =
+    build
+    twine
+commands =
+    python -c "import shutil; shutil.rmtree('dist', ignore_errors=True)"
+    python -m build
+    twine check dist/*
+"""
+
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
