@@ -11,27 +11,28 @@ from lektor.reporter import reporter
 from PIL import Image
 
 
+IMG_ATTRS = {"decoding", "loading"}
+
+
 class ImgUtilsPlugin(Plugin):
     name = "imgutils"
     description = "Image handling utilities."
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        conf = self.get_config()
-        self.sections = {s: conf.section_as_dict(s) for s in conf.sections()}
         self.images = {}
 
     def on_after_build_all(self, builder, **extra):
         reporter.report_generic("Starting image utilities")
+        config = self.get_config()
         for page in Path(builder.destination_path).glob("**/*.html"):
             content = page.read_text()
             soup = BeautifulSoup(content, "html.parser")
             modified = False
 
             added_attrs = {}
-            for section, options in self.sections.items():
-                selector = options["_selector"]
-                generate = options.get("_generate", [])
+            for section in config.sections():
+                selector = config.get(f"{section}.selector")
                 for tag in soup.select(selector):
                     img_file = page.parent.joinpath(tag["src"]).resolve()
                     if img_file not in self.images:
@@ -40,7 +41,8 @@ class ImgUtilsPlugin(Plugin):
                         added_attrs[tag] = {}
 
                     sized = ("width" in tag.attrs) or ("height" in tag.attrs)
-                    if ("size" in generate) and (not sized):
+                    if config.get_bool(f"{section}.size", False) and \
+                            (not sized):
                         img_data = self.images[img_file]
                         if ("width" not in img_data) or \
                                 ("height" not in img_data):
@@ -50,8 +52,9 @@ class ImgUtilsPlugin(Plugin):
                         added_attrs[tag]["width"] = img_data["width"]
                         added_attrs[tag]["height"] = img_data["height"]
 
+                    options = config.section_as_dict(section)
                     for attr, val in options.items():
-                        if (attr[0] != "_") and (attr not in tag.attrs):
+                        if (attr in IMG_ATTRS) and (attr not in tag.attrs):
                             added_attrs[tag][attr] = val
 
             lines = content.splitlines()
