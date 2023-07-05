@@ -16,7 +16,7 @@ class ImgUtilsPlugin(Plugin):
     description = "Image handling utilities."
 
     def __init__(self, *args, **kwargs):
-        Plugin.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         conf = self.get_config()
         self.sections = {s: conf.section_as_dict(s) for s in conf.sections()}
         self.images = {}
@@ -25,9 +25,8 @@ class ImgUtilsPlugin(Plugin):
         return bool(extra_flags.get("imgutils"))
 
     def on_after_build_all(self, builder, **extra):
-        extra_flags = getattr(
-            builder, "extra_flags", getattr(builder, "build_flags", None)
-        )
+        extra_flags = getattr(builder, "extra_flags",
+                              getattr(builder, "build_flags", None))
         if not self.is_enabled(extra_flags):
             return
         reporter.report_generic("Starting image utilities")
@@ -50,7 +49,8 @@ class ImgUtilsPlugin(Plugin):
                     sized = ("width" in tag.attrs) or ("height" in tag.attrs)
                     if ("size" in generate) and (not sized):
                         img_data = self.images[img_file]
-                        if ("width" not in img_data) or ("height" not in img_data):
+                        if ("width" not in img_data) or \
+                                ("height" not in img_data):
                             with Image.open(img_file) as img:
                                 img_data["width"] = img.width
                                 img_data["height"] = img.height
