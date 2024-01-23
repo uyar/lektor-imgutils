@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.2 (unreleased)
+----------------
+
+- Skip images that are not supported by PIL.
+
 0.1 (2023-07-06)
 ----------------
 

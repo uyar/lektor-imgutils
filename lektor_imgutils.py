@@ -1,4 +1,4 @@
-# Copyright (C) 2023 H. Turgut Uyar <uyar@tekir.org>
+# Copyright (C) 2023-2024 H. Turgut Uyar <uyar@tekir.org>
 #
 # lektor-imgutils is released under the BSD license.
 # Read the included LICENSE.txt file for details.
@@ -8,7 +8,7 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 from lektor.pluginsystem import Plugin
 from lektor.reporter import reporter
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 
 IMG_ATTRS = {"decoding", "loading"}
@@ -21,6 +21,7 @@ class ImgUtilsPlugin(Plugin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.images = {}
+        self.skip_images = set()
 
     def on_after_build_all(self, builder, **extra):
         reporter.report_generic("Starting image utilities")
@@ -35,6 +36,9 @@ class ImgUtilsPlugin(Plugin):
                 selector = config.get(f"{section}.selector")
                 for tag in soup.select(selector):
                     img_file = page.parent.joinpath(tag["src"]).resolve()
+                    if img_file in self.skip_images:
+                        continue
+
                     if img_file not in self.images:
                         self.images[img_file] = {}
                     if tag not in added_attrs:
@@ -46,9 +50,19 @@ class ImgUtilsPlugin(Plugin):
                         img_data = self.images[img_file]
                         if ("width" not in img_data) or \
                                 ("height" not in img_data):
-                            with Image.open(img_file) as img:
+                            img = None
+                            try:
+                                img = Image.open(img_file)
                                 img_data["width"] = img.width
                                 img_data["height"] = img.height
+                            except UnidentifiedImageError:
+                                msg = "Unsupported image: %s" % (img_file,)
+                                reporter.report_generic(msg)
+                                self.skip_images.add(img_file)
+                                continue
+                            finally:
+                                if img is not None:
+                                    img.close()
                         added_attrs[tag]["width"] = img_data["width"]
                         added_attrs[tag]["height"] = img_data["height"]
 

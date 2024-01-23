@@ -1,6 +1,6 @@
 [project]
 name = "lektor-imgutils"
-version = "0.1"
+version = "0.2"
 description = "Image handling utilities for Lektor."
 readme = "README.rst"
 
