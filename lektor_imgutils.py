@@ -6,6 +6,7 @@
 from pathlib import Path
 
 from bs4 import BeautifulSoup
+from collections import defaultdict
 from lektor.pluginsystem import Plugin
 from lektor.reporter import reporter
 from PIL import Image, UnidentifiedImageError
@@ -23,69 +24,72 @@ class ImgUtilsPlugin(Plugin):
         self.images = {}
         self.skip_images = set()
 
+    def set_size(self, image_path, attrs):
+        if ("width" in attrs) or ("height" in attrs):
+            return {}
+        image_data = self.images[image_path]
+        if ("width" not in image_data) or ("height" not in image_data):
+            image = None
+            try:
+                image = Image.open(image_path)
+                image_data["width"] = image.width
+                image_data["height"] = image.height
+            except UnidentifiedImageError as e:
+                raise e
+            finally:
+                if image is not None:
+                    image.close()
+        return {"width": image_data["width"], "height": image_data["height"]}
+
     def on_after_build_all(self, builder, **extra):
         reporter.report_generic("Starting image utilities")
+
         config = self.get_config()
+        sections = list(config.sections())
+
         for page in Path(builder.destination_path).glob("**/*.html"):
             content = page.read_text()
             soup = BeautifulSoup(content, "html.parser")
-            modified = False
 
-            added_attrs = {}
-            for section in config.sections():
+            added_attrs = defaultdict(dict)
+
+            for section in sections:
                 selector = config.get(f"{section}.selector")
                 for tag in soup.select(selector):
-                    img_file = page.parent.joinpath(tag["src"]).resolve()
-                    if img_file in self.skip_images:
+                    image_path = page.parent.joinpath(tag["src"]).resolve()
+                    if image_path in self.skip_images:
                         continue
+                    if image_path not in self.images:
+                        self.images[image_path] = {}
 
-                    if img_file not in self.images:
-                        self.images[img_file] = {}
-                    if tag not in added_attrs:
-                        added_attrs[tag] = {}
-
-                    sized = ("width" in tag.attrs) or ("height" in tag.attrs)
-                    if config.get_bool(f"{section}.size", False) and \
-                            (not sized):
-                        img_data = self.images[img_file]
-                        if ("width" not in img_data) or \
-                                ("height" not in img_data):
-                            img = None
-                            try:
-                                img = Image.open(img_file)
-                                img_data["width"] = img.width
-                                img_data["height"] = img.height
-                            except UnidentifiedImageError:
-                                msg = "Unsupported image: %s" % (img_file,)
-                                reporter.report_generic(msg)
-                                self.skip_images.add(img_file)
-                                continue
-                            finally:
-                                if img is not None:
-                                    img.close()
-                        added_attrs[tag]["width"] = img_data["width"]
-                        added_attrs[tag]["height"] = img_data["height"]
+                    if config.get_bool(f"{section}.set_size", False):
+                        try:
+                            added = self.set_size(image_path, tag.attrs)
+                            if len(added) > 0:
+                                added_attrs[tag].update(added)
+                        except UnidentifiedImageError:
+                            self.skip_images.add(image_path)
+                            del self.images[image_path]
+                            continue
 
                     options = config.section_as_dict(section)
-                    for attr, val in options.items():
+                    for attr, value in options.items():
                         if (attr in IMG_ATTRS) and (attr not in tag.attrs):
-                            added_attrs[tag][attr] = val
+                            added_attrs[tag][attr] = value
 
+            modified = False
             lines = content.splitlines()
             for tag in soup.find_all("img"):
-                img_file = page.parent.joinpath(tag["src"]).resolve()
                 added = added_attrs.get(tag, {})
                 if len(added) > 0:
                     line_no = tag.sourceline - 1
                     line = lines[line_no]
-                    pos = line.index("i", tag.sourcepos) + 3
-                    assert line[pos - 3:pos] == "img", line
-                    assert line[pos].isspace(), line
-
+                    pos = line.index("img", tag.sourcepos) + 3
                     add_str = " ".join(f'{k}="{v}"' for k, v in added.items())
                     lines[line_no] = line[:pos] + " " + add_str + line[pos:]
                     modified = True
 
             if modified:
                 page.write_text('\n'.join(lines))
+
         reporter.report_generic("Finished image utilities")
