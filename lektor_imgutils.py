@@ -3,10 +3,10 @@
 # lektor-imgutils is released under the BSD license.
 # Read the included LICENSE.txt file for details.
 
+from collections import defaultdict
 from pathlib import Path
 
 from bs4 import BeautifulSoup
-from collections import defaultdict
 from lektor.pluginsystem import Plugin
 from lektor.reporter import reporter
 from PIL import Image, UnidentifiedImageError
@@ -19,8 +19,7 @@ class ImgUtilsPlugin(Plugin):
     name = "imgutils"
     description = "Image handling utilities."
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def on_setup_env(self, **extra):
         self.images = {}
         self.skip_images = set()
 
