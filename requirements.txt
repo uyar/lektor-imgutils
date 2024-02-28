@@ -9,10 +9,11 @@ exifread==3.0.0
 filetype==1.2.0
 flask==2.3.3
 idna==3.6
+importlib-metadata==7.0.1
 inifile==0.4.1
 itsdangerous==2.1.2
 jinja2==3.1.3
-lektor==3.3.10
+lektor==3.3.11
 markupsafe==2.1.5
 mistune==0.8.4
 pillow==10.2.0
@@ -20,9 +21,10 @@ pip==24.0
 python-slugify==8.0.4
 pytz==2024.1
 requests==2.31.0
-setuptools==59.6.0
+setuptools==56.0.0
 soupsieve==2.5
 text-unidecode==1.3
 urllib3==2.2.1
 watchdog==4.0.0
 werkzeug==2.3.8
+zipp==3.17.0

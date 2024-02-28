@@ -26,13 +26,7 @@ requires-python = "~=3.8"
 dependencies = ["lektor", "beautifulsoup4", "pillow"]
 
 [project.optional-dependencies]
-style = [
-    "flake8",
-    "flake8-pyproject",
-    "flake8-isort",
-    "flake8-builtins",
-    "flake8-print",
-]
+style = ["ruff"]
 dev = [
     "lektor-imgutils[style]",
     "build",
@@ -46,12 +40,14 @@ imgutils = "lektor_imgutils:ImgUtilsPlugin"
 [project.urls]
 repository = "https://github.com/uyar/lektor-imgutils"
 
-[tool.flake8]
-max-line-length = 79
+[tool.ruff]
+line-length = 79
 
-[tool.isort]
-lines_after_imports = 2
-multi_line_output = 2
+[tool.ruff.lint]
+select = ["A", "E", "F", "I", "T", "W"]
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
 
 [tool.tox]
 legacy_tox_ini = """
@@ -62,13 +58,9 @@ isolated_build = True
 [testenv:style]
 skip_install = true
 deps =
-    flake8
-    flake8-pyproject
-    flake8-isort
-    flake8-builtins
-    flake8-print
+    ruff
 commands =
-    flake8 lektor_imgutils.py
+    ruff check --preview lektor_imgutils.py
 
 [testenv:package]
 skip_install = true
