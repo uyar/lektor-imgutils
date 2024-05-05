@@ -3,7 +3,6 @@
 # lektor-imgutils is released under the BSD license.
 # Read the included LICENSE.txt file for details.
 
-from collections import defaultdict
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -20,12 +19,27 @@ class ImgUtilsPlugin(Plugin):
     description = "Image handling utilities."
 
     def on_setup_env(self, **extra):
+        self.ops = {}
+        config = self.get_config()
+        for section in config.sections():
+            selector = config.pop(f"{section}.selector")
+            if selector not in self.ops:
+                self.ops[selector] = {}
+
+            set_size = config.get_bool(f"{section}.set_size", None)
+            if set_size is not None:
+                self.ops[selector]["set_size"] = set_size
+                config.pop(f"{section}.set_size")
+
+            options = config.section_as_dict(section)
+            for attr, value in options.items():
+                if attr in IMG_ATTRS:
+                    self.ops[selector][attr] = value
+
         self.images = {}
         self.skip_images = set()
 
-    def set_size(self, image_path, attrs):
-        if ("width" in attrs) or ("height" in attrs):
-            return {}
+    def get_size(self, image_path):
         image_data = self.images[image_path]
         if ("width" not in image_data) or ("height" not in image_data):
             image = None
@@ -33,8 +47,6 @@ class ImgUtilsPlugin(Plugin):
                 image = Image.open(image_path)
                 image_data["width"] = image.width
                 image_data["height"] = image.height
-            except UnidentifiedImageError as e:
-                raise e
             finally:
                 if image is not None:
                     image.close()
@@ -43,37 +55,34 @@ class ImgUtilsPlugin(Plugin):
     def on_after_build_all(self, builder, **extra):
         reporter.report_generic("Starting image utilities")
 
-        config = self.get_config()
-        sections = list(config.sections())
-
         for page in Path(builder.destination_path).glob("**/*.html"):
             content = page.read_text()
             soup = BeautifulSoup(content, "html.parser")
 
-            added_attrs = defaultdict(dict)
-
-            for section in sections:
-                selector = config.get(f"{section}.selector")
+            added_attrs = {}
+            for selector, ops in self.ops.items():
+                set_size = ops.pop("set_size", False)
                 for tag in soup.select(selector):
                     image_path = page.parent.joinpath(tag["src"]).resolve()
                     if image_path in self.skip_images:
                         continue
                     if image_path not in self.images:
                         self.images[image_path] = {}
+                    if tag not in added_attrs:
+                        added_attrs[tag] = {}
 
-                    if config.get_bool(f"{section}.set_size", False):
+                    if set_size and ("width" not in tag.attrs) and ("height" not in tag.attrs):
                         try:
-                            added = self.set_size(image_path, tag.attrs)
-                            if len(added) > 0:
-                                added_attrs[tag].update(added)
+                            size_attrs = self.get_size(image_path)
+                            if len(size_attrs) > 0:
+                                added_attrs[tag].update(size_attrs)
                         except UnidentifiedImageError:
                             self.skip_images.add(image_path)
                             del self.images[image_path]
                             continue
 
-                    options = config.section_as_dict(section)
-                    for attr, value in options.items():
-                        if (attr in IMG_ATTRS) and (attr not in tag.attrs):
+                    for attr, value in ops.items():
+                        if attr not in tag.attrs:
                             added_attrs[tag][attr] = value
 
             modified = False
