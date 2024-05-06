@@ -24,12 +24,13 @@ classifiers = [
 ]
 
 requires-python = "~=3.8"
-dependencies = ["lektor", "lxml", "cssselect", "pillow"]
+dependencies = ["lektor", "lxml", "cssselect", "pillow", "typedload"]
 
 [project.optional-dependencies]
 style = ["ruff"]
+types = ["mypy", "lxml-stubs"]
 dev = [
-    "lektor-imgutils[style]",
+    "lektor-imgutils[types,style]",
     "build",
     "twine",
     "tox",
@@ -40,6 +41,9 @@ imgutils = "lektor_imgutils:ImgUtilsPlugin"
 
 [project.urls]
 repository = "https://github.com/uyar/lektor-imgutils"
+
+[tool.mypy]
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 79
@@ -53,8 +57,13 @@ lines-after-imports = 2
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = style
+envlist = style, types
 isolated_build = True
+
+[testenv:types]
+extras = types
+commands =
+    mypy lektor_imgutils.py
 
 [testenv:style]
 skip_install = true
