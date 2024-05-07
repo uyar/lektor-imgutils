@@ -6,7 +6,7 @@
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
-from typing import Dict, List, Literal, Set, Tuple, Union
+from typing import Dict, List, Literal, Set, Tuple, TypedDict, Union
 
 import typedload
 from lektor.builder import Builder
@@ -23,11 +23,15 @@ to_html = partial(html.tostring, encoding="unicode")
 
 
 @dataclass
-class ImageAttributes:
-    width: Union[int, Literal["intrinsic"], None] = None
-    height: Union[int, Literal["intrinsic"], None] = None
+class ImageOps:
+    size: Union[Literal["intrinsic"], None] = None
     loading: Union[Literal["eager", "lazy"], None] = None
     decoding: Union[Literal["sync", "async", "auto"], None] = None
+
+
+class ImageData(TypedDict, total=False):
+    width: int
+    height: int
 
 
 class ImgUtilsPlugin(Plugin):
@@ -36,24 +40,24 @@ class ImgUtilsPlugin(Plugin):
 
     def on_setup_env(self, **extra) -> None:
         config = self.get_config()
-        self.ops: Dict[CSSSelector, ImageAttributes] = {}
+        self.ops: Dict[CSSSelector, ImageOps] = {}
         for selector in config.sections():
             data = config.section_as_dict(selector)
-            parsed = typedload.load(data, ImageAttributes, failonextra=True)
+            parsed = typedload.load(data, ImageOps, failonextra=True)
             self.ops[CSSSelector(selector)] = parsed
-        self.image_data: Dict[Path, ImageAttributes] = {}
+        self.image_data: Dict[Path, ImageData] = {}
         self.skip_images: Set[Path] = set()
 
     def get_intrinsic_size(self, path: Path) -> Tuple[int, int]:
         data = self.image_data.get(path)
         if data is None:
-            data = ImageAttributes()
+            data = ImageData()
             self.image_data[path] = data
-        if (data.width is None) or (data.height is None):
+        if ("width" not in data) and ("height" not in data):
             with Image.open(path) as image:
-                data.width = image.width
-                data.height = image.height
-        return (data.width, data.height)
+                data["width"] = image.width
+                data["height"] = image.height
+        return (data["width"], data["height"])
 
     def on_after_build_all(self, builder: Builder, **extra) -> None:
         reporter.report_generic("Starting image utilities")
@@ -63,45 +67,35 @@ class ImgUtilsPlugin(Plugin):
             tree = from_html(content)
             modified = False
             for selector, ops in self.ops.items():
-                tags: List[Element] = selector(tree)
+                tags: List[Element] = selector(tree)  # type: ignore
                 for tag in tags:
-                    atts = tag.attrib
-                    src = atts.get("src")
+                    src = tag.attrib.get("src")
                     if src is None:
                         continue
                     image_path = page.parent.joinpath(src).resolve()
                     if image_path in self.skip_images:
                         continue
 
-                    if (ops.width is not None) and ("width" not in atts):
-                        if ops.width == "intrinsic":
-                            try:
-                                width, _ = self.get_intrinsic_size(image_path)
-                            except UnidentifiedImageError:
-                                self.skip_images.add(image_path)
-                                continue
-                        else:
-                            width = ops.width
-                        atts["width"] = str(width)
+                    if (ops.size == "intrinsic") \
+                            and ("width" not in tag.attrib) \
+                            and ("height" not in tag.attrib):
+                        try:
+                            width, height = self.get_intrinsic_size(image_path)
+                        except UnidentifiedImageError:
+                            self.skip_images.add(image_path)
+                            continue
+                        tag.attrib["width"] = str(width)
+                        tag.attrib["height"] = str(height)
                         modified = True
 
-                    if (ops.height is not None) and ("height" not in atts):
-                        if ops.height == "intrinsic":
-                            try:
-                                _, height = self.get_intrinsic_size(image_path)
-                            except UnidentifiedImageError:
-                                self.skip_images.add(image_path)
-                                continue
-                        else:
-                            height = ops.height
-                        atts["height"] = str(height)
-
-                    if (ops.loading is not None) and ("loading" not in atts):
-                        atts["loading"] = ops.loading
+                    if (ops.loading is not None) \
+                            and ("loading" not in tag.attrib):
+                        tag.attrib["loading"] = ops.loading
                         modified = True
 
-                    if (ops.decoding is not None) and ("decoding" not in atts):
-                        atts["decoding"] = ops.decoding
+                    if (ops.decoding is not None) \
+                            and ("decoding" not in tag.attrib):
+                        tag.attrib["decoding"] = ops.decoding
                         modified = True
 
             if modified:

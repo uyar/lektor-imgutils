@@ -4,7 +4,8 @@ Changes
 0.2 (unreleased)
 ----------------
 
-- Skip images that are not supported by PIL.
+- Config sections are now CSS selectors.
+- Skip images that are not supported by Pillow.
 
 0.1 (2023-07-06)
 ----------------
