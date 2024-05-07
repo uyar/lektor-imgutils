@@ -3,6 +3,8 @@
 # lektor-imgutils is released under the BSD license.
 # Read the included LICENSE.txt file for details.
 
+__version__ = "0.2"
+
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path

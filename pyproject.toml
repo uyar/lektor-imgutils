@@ -27,10 +27,11 @@ requires-python = "~=3.8"
 dependencies = ["lektor", "lxml", "cssselect", "pillow", "typedload"]
 
 [project.optional-dependencies]
+tests = ["pytest", "pytest-cov"]
 style = ["ruff"]
 types = ["mypy", "lxml-stubs"]
 dev = [
-    "lektor-imgutils[types,style]",
+    "lektor-imgutils[tests,types,style]",
     "build",
     "twine",
     "tox",
@@ -42,6 +43,16 @@ imgutils = "lektor_imgutils:ImgUtilsPlugin"
 [project.urls]
 repository = "https://github.com/uyar/lektor-imgutils"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["lektor_imgutils.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
 [tool.mypy]
 ignore_missing_imports = true
 
@@ -51,14 +62,24 @@ line-length = 79
 [tool.ruff.lint]
 select = ["A", "E", "F", "I", "T", "W"]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+
 [tool.ruff.lint.isort]
 lines-after-imports = 2
 
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = style, types
+envlist = py3{8,9,10,11,12}, style, types
 isolated_build = True
+
+[testenv]
+extras = tests
+package = wheel
+wheel_build_env = .pkg
+commands =
+    pytest
 
 [testenv:types]
 extras = types
